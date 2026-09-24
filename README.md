@@ -1,4 +1,4 @@
-# 🚘 Drive Guard — Driver Drowsiness Detection with Edge Impulse
+# Drive Guard  Driver Drowsiness Detection with Edge Impulse
 
 **Drive Guard** watches the driver's face through a camera and detects in real time whether the driver is **Normal** (awake and alert) or **Drowsy** (eyes closing, falling asleep). When drowsiness is detected, it **sounds an alarm** in the browser and **sends a signal to an Arduino**, which can trigger a buzzer, LED or vibration motor to wake the driver.
 
