@@ -1,0 +1,35 @@
+# ============================================================
+# Drive Guard — .gitignore
+# Push: code (.html, .js, .py, .ino), the Edge Impulse model
+# (.wasm, needed to run the app) and the README files.
+# ============================================================
+
+# Duplicate file downloaded twice
+run-impulse (2).js
+*(2).*
+
+# Edge Impulse downloads (unzip them, don't push the zip)
+*.zip
+
+# Test feature files
+features.txt
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Node.js
+node_modules/
+npm-debug.log*
+
+# Secrets
+.env
+
+# Editor / system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

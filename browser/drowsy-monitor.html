@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Driver Drowsiness Monitor</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #0a0d12;
+    --panel: #12161d;
+    --panel-edge: #1c222b;
+    --text: #e8ecf1;
+    --muted: #6b7684;
+    --green: #35d07f;
+    --green-dim: #1a5c3d;
+    --red: #ff4d4d;
+    --red-dim: #6b1f1f;
+    --amber: #f5a623;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 50% -10%, #151b24 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 60px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  h1 {
+    font-size: 26px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .console {
+    width: 100%;
+    max-width: 480px;
+    background: linear-gradient(180deg, var(--panel) 0%, #0d1117 100%);
+    border: 1px solid var(--panel-edge);
+    border-radius: 20px;
+    padding: 28px 24px 22px;
+    box-shadow:
+      0 20px 60px -20px rgba(0,0,0,0.7),
+      inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+
+  /* --- HUD ring around camera --- */
+  .hud {
+    position: relative;
+    width: 260px;
+    height: 260px;
+    margin: 0 auto 22px;
+  }
+
+  .hud svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+
+  .hud svg circle {
+    fill: none;
+    stroke-width: 3;
+  }
+
+  .hud .track {
+    stroke: #1c222b;
+  }
+
+  .hud .fill {
+    stroke: var(--green);
+    stroke-linecap: round;
+    stroke-dasharray: 691;
+    stroke-dashoffset: 691;
+    transition: stroke-dashoffset 0.5s ease, stroke 0.4s ease;
+    filter: drop-shadow(0 0 6px currentColor);
+  }
+
+  .hud.drowsy .fill { stroke: var(--red); }
+
+  .frame {
+    position: absolute;
+    top: 16px; left: 16px; right: 16px; bottom: 16px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #000;
+    border: 1px solid var(--panel-edge);
+  }
+
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1); /* mirror, feels natural */
+  }
+
+  canvas { display: none; }
+
+  /* --- readout --- */
+  .readout {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  #status-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  #status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 32px;
+    font-weight: 700;
+    transition: color 0.3s ease;
+  }
+
+  #status.normal { color: var(--green); }
+  #status.drowsy {
+    color: var(--red);
+    animation: alertPulse 1s infinite;
+  }
+
+  @keyframes alertPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+
+  /* --- connect button --- */
+  .connect-row {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 18px;
+  }
+
+  #connectBtn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: var(--panel-edge);
+    color: var(--text);
+    border: 1px solid #2a323d;
+    border-radius: 999px;
+    padding: 11px 22px;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #connectBtn:hover { background: #1a212b; border-color: #37414d; }
+
+  #connectBtn::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    box-shadow: 0 0 0 rgba(0,0,0,0);
+  }
+
+  #connectBtn.connected::before {
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+  }
+
+  /* --- log terminal --- */
+  .log-wrap {
+    border-top: 1px solid var(--panel-edge);
+    padding-top: 14px;
+  }
+
+  .log-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  #log {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    line-height: 1.7;
+    color: #8b96a3;
+    white-space: pre-wrap;
+    max-height: 130px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  #log::-webkit-scrollbar { width: 4px; }
+  #log::-webkit-scrollbar-thumb { background: var(--panel-edge); border-radius: 2px; }
+
+  footer {
+    margin-top: 22px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: #3d4552;
+    letter-spacing: 0.08em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #status.drowsy { animation: none; }
+    .hud .fill { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+  <header>
+    <div class="eyebrow">Rise Motive &middot; Fatigue Detection</div>
+    <h1>Driver Drowsiness Monitor</h1>
+  </header>
+
+  <div class="console">
+
+    <div class="hud" id="hud">
+      <svg viewBox="0 0 240 240">
+        <circle class="track" cx="120" cy="120" r="110"></circle>
+        <circle class="fill" id="hudFill" cx="120" cy="120" r="110"></circle>
+      </svg>
+      <div class="frame">
+        <video id="webcam" autoplay playsinline muted></video>
+      </div>
+    </div>
+    <canvas id="canvas" width="96" height="96"></canvas>
+
+    <div class="readout">
+      <div id="status-label">Status</div>
+      <div id="status" class="normal">Loading model&hellip;</div>
+    </div>
+
+    <div class="connect-row">
+      <button id="connectBtn">Connect to Arduino</button>
+    </div>
+
+    <div class="log-wrap">
+      <div class="log-label">System Log</div>
+      <div id="log"></div>
+    </div>
+
+  </div>
+
+  <footer>96×96 &middot; on-device inference &middot; local only</footer>
+
+  <script src="edge-impulse-standalone.js"></script>
+  <script src="run-impulse.js"></script>
+  <script>
+    let classifier;
+    let port, writer;
+    let lastSent = "";
+
+    const CIRC = 2 * Math.PI * 110; // ~691.15
+
+    async function initModel() {
+      classifier = new EdgeImpulseClassifier();
+      await classifier.init();
+      const project = classifier.getProjectInfo();
+      log(`Loaded model: ${project.owner}/${project.name} v${project.deploy_version}`);
+    }
+
+    async function initWebcam() {
+      const video = document.getElementById('webcam');
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 320 } });
+      video.srcObject = stream;
+      return new Promise(resolve => video.onloadedmetadata = () => resolve(video));
+    }
+
+    function getFeatures(video, canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, 96, 96);
+      const data = ctx.getImageData(0, 0, 96, 96).data;
+      const features = [];
+      for (let i = 0; i < data.length; i += 4) {
+        features.push((data[i] << 16) + (data[i + 1] << 8) + data[i + 2]);
+      }
+      return features;
+    }
+
+    function log(msg) {
+      const el = document.getElementById('log');
+      el.textContent = msg + "\n" + el.textContent;
+    }
+
+    async function connectArduino() {
+      const btn = document.getElementById('connectBtn');
+      try {
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 9600 });
+        writer = port.writable.getWriter();
+        log("Arduino connected.");
+        btn.textContent = "Connected";
+        btn.classList.add('connected');
+      } catch (err) {
+        log("Connection failed: " + err);
+      }
+    }
+
+    async function sendToArduino(label) {
+      if (!writer || label === lastSent) return;
+      lastSent = label;
+      const encoder = new TextEncoder();
+      await writer.write(encoder.encode(label.toLowerCase() + "\n"));
+      log("Sent to Arduino: " + label);
+    }
+
+    function updateHud(value, isDrowsy) {
+      const fill = document.getElementById('hudFill');
+      const hud = document.getElementById('hud');
+      const offset = CIRC - (value * CIRC);
+      fill.style.strokeDashoffset = offset;
+      hud.classList.toggle('drowsy', isDrowsy);
+    }
+
+    let alertAudioCtx = null;
+
+function playDrowsyAlert() {
+  if (!alertAudioCtx) alertAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const osc = alertAudioCtx.createOscillator();
+  const gain = alertAudioCtx.createGain();
+  osc.type = "square";
+  osc.frequency.value = 880; // loud, sharp beep tone
+  gain.gain.value = 0.3;
+  osc.connect(gain);
+  gain.connect(alertAudioCtx.destination);
+  osc.start();
+  osc.stop(alertAudioCtx.currentTime + 0.4); // beep for 0.4 seconds
+}
+
+    async function runLoop() {
+      const video = document.getElementById('webcam');
+      const canvas = document.getElementById('canvas');
+      const statusEl = document.getElementById('status');
+
+      setInterval(async () => {
+        try {
+          const features = getFeatures(video, canvas);
+          const res = classifier.classify(features);
+
+          let bestLabel = null, bestValue = 0;
+
+          if (res.results && res.results.length > 0) {
+            for (const r of res.results) {
+              if (r.value > bestValue) { bestValue = r.value; bestLabel = r.label; }
+            }
+          } else if (res.classification) {
+            for (const label in res.classification) {
+              if (res.classification[label] > bestValue) {
+                bestValue = res.classification[label];
+                bestLabel = label;
+              }
+            }
+          }
+
+        if (bestLabel) {
+  const isDrowsy = bestLabel.toLowerCase() === "drowsy";
+  statusEl.textContent = `${bestLabel} — ${(bestValue * 100).toFixed(1)}%`;
+  statusEl.className = isDrowsy ? "drowsy" : "normal";
+  updateHud(bestValue, isDrowsy);
+  sendToArduino(bestLabel);
+
+  if (isDrowsy) {
+    playDrowsyAlert();
+  }
+} else {
+            statusEl.textContent = "No detection";
+            statusEl.className = "normal";
+          }
+        } catch (ex) {
+          log("Inference error: " + ex.message);
+        }
+      }, 1000);
+    }
+
+    document.getElementById('connectBtn').onclick = connectArduino;
+
+    (async () => {
+      try {
+        await initModel();
+        await initWebcam();
+        runLoop();
+      } catch (ex) {
+        log("Startup error: " + ex.message);
+      }
+    })();
+  </script>
+</body>
+</html>
