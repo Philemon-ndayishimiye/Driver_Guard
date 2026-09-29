@@ -162,9 +162,9 @@ Follow these steps to recreate or improve the model. If you only want to run the
 
 ---
 
-## 6. Part B — Running the Project (Step by Step)
+## 6. Part B Running the Project (Step by Step)
 
-### Step 1 — Install the prerequisites
+### Step 1 Install the prerequisites
 
 | Tool | Needed for | Download |
 |---|---|---|
